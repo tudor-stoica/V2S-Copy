@@ -96,9 +96,17 @@ model = WARTmodel(target_shape, pr_model, source_classes, mapping_num, num_class
 
 ## Loss
 adam = tf.keras.optimizers.Adam(lr=0.05,decay=0.48)
-save_path = "weight/" + "beta/No" + str(args.dataset) +"_map" + str(args.mapping) + "-{epoch:02d}-{val_accuracy:.4f}.h5"
+save_path = "weight/beta/No{}_map{}".format(args.dataset, args.mapping)
 if args.per!= 0:
-    checkpoints = tf.keras.callbacks.ModelCheckpoint(save_path, save_weights_only=True, period=args.per)
+    checkpoints = tf.keras.callbacks.ModelCheckpoint(
+    filepath=save_path + "-epoch{epoch:02d}-val_acc{val_accuracy:.4f}", 
+    save_weights_only=True, 
+    save_freq='epoch', 
+    save_format='tf',
+    monitor='val_accuracy',
+    save_best_only=True,
+    mode='max'
+    )
     exp_callback = [tf.keras.callbacks.EarlyStopping(patience=500), checkpoints]
 else:
     exp_callback = [tf.keras.callbacks.EarlyStopping(patience=500)]

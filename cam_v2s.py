@@ -93,8 +93,10 @@ x_test = x_test.reshape((x_test.shape[0], x_test.shape[1], 1))
 target_shape = x_test[0].shape
 
 art_model = WARTmodel(target_shape, model, 36,  args.mapping, num_classes, mod=2)
-art_model.load_weights("weight/"+ args.weight)
 
+checkpoint_path = "weight/" + args.weight
+checkpoint = tf.train.Checkpoint(model=art_model)
+checkpoint.restore(tf.train.latest_checkpoint(checkpoint_path)).expect_partial()
 
 ReproM = Model(inputs=art_model.input, outputs=[art_model.get_layer('reshape_1').output])
 
