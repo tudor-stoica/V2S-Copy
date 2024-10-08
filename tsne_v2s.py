@@ -83,8 +83,8 @@ attM = Model(inputs=model.input, outputs=[model.get_layer('output').output,
                                           model.get_layer('mel_stft').output,
                                           model.get_layer('dense_1').output])
 
-task_num = 63
-path = 'weight/v2s_no63_map18_seg10_dr2_273_0.9757.h5'
+task_num = 2
+path = 'weight/beta/No0_map1-epoch10-val_acc0.9371'
 x_train, y_train, x_test, y_test = readucr(task_num)
 classes = np.unique(np.concatenate((y_train, y_test), axis=0))
 num_classes = len(np.unique(y_train))
@@ -94,7 +94,9 @@ x_test = x_test.reshape((x_test.shape[0], x_test.shape[1], 1))
 target_shape = x_test[0].shape
 
 art_model = WARTmodel(target_shape, model, 36,  mapping_num, num_classes, mod=2)
-art_model.load_weights(path)
+
+checkpoint_art = tf.train.Checkpoint(model=art_model)
+checkpoint_art.restore(tf.train.latest_checkpoint(path)).expect_partial()
 
 ReproM = Model(inputs=art_model.input, outputs=[art_model.get_layer('reshape_1').output])
 
