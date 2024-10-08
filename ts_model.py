@@ -91,7 +91,7 @@ class ARTLayer(Layer):
 def SegZeroPadding1D(orig_x, seg_num, orig_xlen):
     src_xlen = 16000
     all_seg = src_xlen//orig_xlen
-    seg_len = np.int(np.floor(all_seg//seg_num))
+    seg_len = int(np.floor(all_seg//seg_num))
     aug_x = tf.zeros([src_xlen,1])
     for s in range(seg_num):
         startidx = (s*seg_len)*orig_xlen
