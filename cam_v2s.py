@@ -24,7 +24,7 @@ cmds = np.load("Datasets/val_cmds.npy")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type = int, default = 5, help = "Ford-A (0), Beef (1), ECG200 (2), Wine (3)") 
-parser.add_argument("--weight", type = str, default = "wNo5_map6-88-0.7662.h5", help = "weight in /weights/")
+parser.add_argument("--weight", type = str, default = "beta/No0_map1-epoch10-val_acc0.9371", help = "weight in /weights/")
 parser.add_argument("--mapping", type= int, default= 6, help = "number of multi-mapping")
 parser.add_argument("--layer", type = str, default = "conv2d_1", help = "the layer for cam")
 args = parser.parse_args()
