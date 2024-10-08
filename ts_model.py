@@ -25,7 +25,6 @@ def AttRNN_Model(unet= False):
 
     model = AttRNNSpeechModel(nCategs, samplingrate = sr, inputLength = None, unet= False)
     model.compile(optimizer='adam', loss=['sparse_categorical_crossentropy'], metrics=['sparse_categorical_accuracy'])
-    model.summary()
     model.load_weights('weight/pr_attRNN.h5')
     #model = load_model('weight/pr_attRNN.h5', custom_objects={'Melspectrogram': Melspectrogram, 'Normalization2D': Normalization2D })
 
