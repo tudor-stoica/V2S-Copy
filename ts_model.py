@@ -13,6 +13,7 @@ from SpeechModels import AttRNNSpeechModel, VggishModel
 import numpy as np
 from utils import multi_mapping
 from tensorflow import keras
+import h5py
 
 print("tensorflow vr. ", tf.__version__, "kapre vr. ",kapre.__version__)
 
@@ -24,8 +25,9 @@ def AttRNN_Model(unet= False):
 
     model = AttRNNSpeechModel(nCategs, samplingrate = sr, inputLength = None, unet= False)
     model.compile(optimizer='adam', loss=['sparse_categorical_crossentropy'], metrics=['sparse_categorical_accuracy'])
+    model.summary()
     model.load_weights('weight/pr_attRNN.h5')
-    # model = load_model('weight/model-attRNN.h5', custom_objects={'Melspectrogram': Melspectrogram, 'Normalization2D': Normalization2D })
+    #model = load_model('weight/pr_attRNN.h5', custom_objects={'Melspectrogram': Melspectrogram, 'Normalization2D': Normalization2D })
 
     # x = np.random.rand(32,16000)
     # print(model.predict(x).shape)
@@ -91,7 +93,7 @@ class ARTLayer(Layer):
 def SegZeroPadding1D(orig_x, seg_num, orig_xlen):
     src_xlen = 16000
     all_seg = src_xlen//orig_xlen
-    seg_len = np.int(np.floor(all_seg//seg_num))
+    seg_len = int(np.floor(all_seg//seg_num))
     aug_x = tf.zeros([src_xlen,1])
     for s in range(seg_num):
         startidx = (s*seg_len)*orig_xlen
