@@ -70,7 +70,7 @@ class ARTLayer(Layer):
         elif self.mod == 1:
             ### pad at center
             self.M_center = np.zeros((1,self.tar_1ds)).astype('float32')
-            maxlen1 = np.int(np.floor((16000-self.tar_1ds)/2) + self.tar_1ds) 
+            maxlen1 = int(np.floor((16000-self.tar_1ds)/2) + self.tar_1ds) 
             maxlen2 = 16000
             self.pre_M = pad_sequences(self.M_center, maxlen=maxlen1, dtype='float32', padding='pre', value=1.0) #111...111[tar]
             self.pos_M = pad_sequences(self.pre_M, maxlen=maxlen2, dtype='float32', padding='post', value=1.0) #111...111[tar]111...111
