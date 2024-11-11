@@ -13,19 +13,28 @@ import argparse
 K.clear_session()
 # K.set_learning_phase(0)
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--mod", type = int, default = 2, help = "Single input seq (0), multiple input aug (1), repro w/ TF (2)")
-parser.add_argument("--net", type = int, default = 0, help = "Pretrained (0), AttRNN (#32), (1) VGGish (#512)")
-parser.add_argument("--dataset", type = int, default = 0, help = "Ford-A (0), Beef (1), ECG200 (2), Wine (3), Earthquakes (4), Worms (5), Distal (6), Outline Correct (7), ECG-5k (8), ArrowH (9), CBF (10), ChlorineCon (11)")
-parser.add_argument("--mapping", type= int, default=1, help = "number of multi-mapping")
-parser.add_argument("--eps", type = int, default = 100, help = "Epochs") 
-parser.add_argument("--per", type = int, default = 0, help = "save weight per N epochs")
-parser.add_argument("--dr", type=int, default = 4, help = "drop out rate")
-parser.add_argument("--seg", type=int, default = 1, help = "seg padding number")
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--mod", type = int, default = 2, help = "Single input seq (0), multiple input aug (1), repro w/ TF (2)")
+# parser.add_argument("--net", type = int, default = 0, help = "Pretrained (0), AttRNN (#32), (1) VGGish (#512)")
+# parser.add_argument("--dataset", type = int, default = 0, help = "Ford-A (0), Beef (1), ECG200 (2), Wine (3), Earthquakes (4), Worms (5), Distal (6), Outline Correct (7), ECG-5k (8), ArrowH (9), CBF (10), ChlorineCon (11)")
+# parser.add_argument("--mapping", type= int, default=1, help = "number of multi-mapping")
+# parser.add_argument("--eps", type = int, default = 100, help = "Epochs") 
+# parser.add_argument("--per", type = int, default = 0, help = "save weight per N epochs")
+# parser.add_argument("--dr", type=int, default = 4, help = "drop out rate")
+# parser.add_argument("--seg", type=int, default = 1, help = "seg padding number")
+# args = parser.parse_args()
+
+mod = 2
+net = 0
+dataset = 0
+mapping = 18
+eps = 20
+per = 2
+dr = 4
+seg = 18
 
 
-x_train, y_train, x_test, y_test = readucr(args.dataset)
+x_train, y_train, x_test, y_test = readucr(dataset)
     
 y_train = [np.uint32(i) for i in y_train]
 y_test = [np.uint32(i) for i in y_test]
@@ -52,22 +61,22 @@ print("--- X shape : ", x_train[0].shape, "--- Num of Classes : ", num_classes) 
 
 
 ## Pre-trained Model for Adv Program  
-if args.net == 0:
+if net == 0:
     pr_model = AttRNN_Model()
-elif args.net == 1: # fine-tuning with additive dense layer
+elif net == 1: # fine-tuning with additive dense layer
     pr_model = VGGish_Model()
-elif args.net == 2: # audio-set output classes  = 128
+elif net == 2: # audio-set output classes  = 128
     pr_model = VGGish_Model(audioset = True)
-elif args.net == 3: # unet
+elif net == 3: # unet
     pr_model = AttRNN_Model(unet= True)
 
 
 # pr_model.summary()
 
 ## # of Source classes in Pre-trained Model
-if args.net != 2: ## choose pre-trained network 
+if net != 2: ## choose pre-trained network 
     source_classes = 36 ## Google Speech Commands
-elif args.net == 2:
+elif net == 2:
     source_classes = 128 ## AudioSet by VGGish
 else:
     source_classes = 512 ## VGGish feature num
@@ -75,9 +84,9 @@ else:
 target_shape = x_train[0].shape
 
 ## Adv Program Time Series (ART)
-mapping_num = args.mapping
-seg_num = args.seg
-drop_rate = args.dr*0.1
+mapping_num = mapping
+seg_num = seg
+drop_rate = dr*0.1
 
 pr_model.summary()
 
@@ -89,15 +98,15 @@ except AssertionError:
     print("Error: The mapping num should be smaller than source_classes / num_classes: {}".format(source_classes//num_classes)) 
     exit(1)
 
-model = WARTmodel(target_shape, pr_model, source_classes, mapping_num, num_classes, args.mod, seg_num, drop_rate)
+model = WARTmodel(target_shape, pr_model, source_classes, mapping_num, num_classes, mod, seg_num, drop_rate)
 # else:
 # model = pr_model # define for transfer learning
 
 
 ## Loss
 adam = tf.keras.optimizers.Adam(lr=0.05,decay=0.48)
-save_path = "weight/beta/No{}_map{}".format(args.dataset, args.mapping)
-if args.per!= 0:
+save_path = "weight/beta/No{}_map{}".format(dataset, mapping)
+if per!= 0:
     checkpoints = tf.keras.callbacks.ModelCheckpoint(
     filepath=save_path + "-epoch{epoch:02d}-val_acc{val_accuracy:.4f}", 
     save_weights_only=True, 
@@ -117,10 +126,10 @@ model.compile(loss='categorical_crossentropy', optimizer = adam, metrics=['accur
 model.summary()
 
 batch_size = 32
-epochs = args.eps
+epochs = eps
 
 # convert class vectors to binary class matrices
-if args.mod == 0: # single input w/ random mapping
+if mod == 0: # single input w/ random mapping
     y_train = keras.utils.to_categorical(y_train, source_classes)
     y_test = keras.utils.to_categorical(y_test, source_classes)
 else: # with many to one mapping
@@ -142,6 +151,6 @@ print('- Test accuracy:', score[1])
 
 print("=== Best Val. Acc: ", max(exp_history.history['val_accuracy']), " At Epoch of ", np.argmax(exp_history.history['val_accuracy']))
 
-plot_acc_loss(exp_history, str(args.eps), str(args.dataset), str(args.mapping))
+plot_acc_loss(exp_history, str(eps), str(dataset), str(mapping))
 
 

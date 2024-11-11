@@ -1,15 +1,24 @@
-import h5py
+from tensorflow.keras import layers as L
+from tensorflow.keras.models import Model
+import numpy as np
 
-def print_h5_structure(file_path):
-    def print_attrs(name, obj):
-        print(f"{name}: {obj}")
-        for key, val in obj.attrs.items():
-            print(f"    Attribute - {key}: {val}")
-    
-    with h5py.File(file_path, 'r') as f:
-        print("HDF5 file structure:")
-        f.visititems(print_attrs)
+# Define the expected input length
+expected_input_length = 5
 
-# Path to your .h5 file
-file_path = 'weight/beta/No0_map1-01-0.7765.h5'
-print_h5_structure(file_path)
+# Define the model with a single dense layer following the input layer
+inputs = L.Input((expected_input_length,), name='input')
+x = L.Dense(10)(inputs)  # Simple Dense layer
+model = Model(inputs=inputs, outputs=x)
+
+# Print the model summary to confirm the architecture
+model.summary()
+
+# Create test inputs with different lengths (3 and 7 instead of 5)
+input_too_short = np.random.rand(1, 3)  # Input length of 3
+input_too_long = np.random.rand(1, 7)   # Input length of 7
+
+print(input_too_short)
+print(input_too_long)
+
+# Try to make predictions with different input sizes and catch errors
+model.predict(input_too_short)

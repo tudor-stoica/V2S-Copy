@@ -1,2 +1,2 @@
-model_checkpoint_path: "No0_map1-epoch10-val_acc0.9371"
-all_model_checkpoint_paths: "No0_map1-epoch10-val_acc0.9371"
+model_checkpoint_path: "No0_map18-epoch17-val_acc0.9227"
+all_model_checkpoint_paths: "No0_map18-epoch17-val_acc0.9227"
