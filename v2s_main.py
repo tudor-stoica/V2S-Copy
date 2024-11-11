@@ -9,6 +9,13 @@ from ts_model import AttRNN_Model, ARTLayer, WARTmodel, make_model, VGGish_Model
 from ts_dataloader import readucr, plot_acc_loss
 import argparse
 
+# List available devices
+physical_devices = tf.config.list_physical_devices()
+print("Available physical devices:")
+for device in physical_devices:
+    print(device)
+
+
 # Learning phase is set to 0 since we want the network to use the pretrained moving mean/var
 K.clear_session()
 # K.set_learning_phase(0)
