@@ -1,19 +1,9 @@
-from tensorflow.keras import layers as L
-from tensorflow.keras.models import Model
-import numpy as np
-import tensorflow as tf
+import subprocess
 
-# Add these lines to list available devices
-physical_devices = tf.config.list_physical_devices()
-print("Available physical devices:")
-for device in physical_devices:
-    print(device)
-
-# List and print available GPUs
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-    print("Available GPU devices:")
-    for gpu in gpus:
-        print(gpu)
-else:
-    print("No GPU devices available.")
+# List of values for i
+i_values = [25, 50, 100, 150, 160]
+# Loop through each value and run the command
+for i in i_values:
+    command = f"python v2s_main.py --seg {i}"
+    print(f"Running command: {command}")
+    subprocess.run(command, shell=True)

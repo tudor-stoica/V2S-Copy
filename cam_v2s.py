@@ -23,12 +23,15 @@ audios = np.load("Datasets/val_audios.npy") # load wavs files
 cmds = np.load("Datasets/val_cmds.npy")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type = int, default = 5, help = "Ford-A (0), Beef (1), ECG200 (2), Wine (3)") 
-parser.add_argument("--weight", type = str, default = "beta/No0_map1-epoch10-val_acc0.9371", help = "weight in /weights/")
-parser.add_argument("--mapping", type= int, default= 6, help = "number of multi-mapping")
-parser.add_argument("--seg", type = str, default = 3, help = "the # of segments")
-parser.add_argument("--layer", type = str, default = "conv2d_1", help = "the layer for cam")
+parser.add_argument("--dataset", type=int, default=5, help="Ford-A (0), Beef (1), ECG200 (2), Wine (3)") 
+parser.add_argument("--weight", type=str, default="beta/No0_map1-epoch10-val_acc0.9371", help="weight in /weights/")
+parser.add_argument("--mapping", type=int, default=6, help="number of multi-mapping")
+parser.add_argument("--seg", type=int, default=3, help="the # of segments")
+parser.add_argument("--segplace", type=str, default="start", choices=['start', 'center', 'end'], help="Placement within segments: 'start', 'center', or 'end'")
+parser.add_argument("--segstack", action='store_true', help="Whether to stack target segments consecutively")
+parser.add_argument("--layer", type=str, default="conv2d_1", help="the layer for cam")
 args = parser.parse_args()
+
 
 idAudio = 0
 GSCmdV2Categs = {
@@ -104,80 +107,127 @@ ReproM = Model(inputs=art_model.input, outputs=[art_model.get_layer('reshape_1')
 repros = ReproM.predict(x_test)
 
 
-def visual_sp(audios, use='base', clayer = args.layer):
+def visual_sp(use='base', clayer=args.layer):
+    # Check if the specified layer exists in the base_model
+    layer_names = [layer.name for layer in base_model.layers]
+    if clayer not in layer_names:
+        print(f"Error: Specified layer '{clayer}' not found in base_model.")
+        print("Available layers:", layer_names)
+        return  # Exit the function if layer is not found
 
-    outs, attW, specs = attM.predict(audios)
+    print(f"Using layer '{clayer}' for CAM visualization.")
 
-    w_x, h_x = specs[idAudio,:,:,0].shape
-    i_heatmap1, _ = layer_output(audios, base_model, 'conv2d', idAudio)
-#    i_heatmap2, _ = layer_output(audios, base_model, 'conv2d_1', idAudio)
-    i_cam1 = to_rgb(i_heatmap1, w_x, h_x)
-#    i_cam2 = to_rgb(i_heatmap2, w_x, h_x)
+    # Define an intermediate model to get the output from the input layer after reprogramming
+    reprogram_layer = art_model.get_layer('reshape_1').input
+    reprogram_model = Model(inputs=art_model.input, outputs=reprogram_layer)
 
+    # Get the reprogrammed input (xt') for visualization based on x_test
+    reprogrammed_input = reprogram_model.predict(x_test)
 
+    # Plot the reprogrammed input time series
     plt.figure()
     plt.style.use("seaborn-whitegrid")
-    fig, (ax1, ax2,ax3, ax4) = plt.subplots(4, 1, figsize=(12, 20))
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 20))
 
-    # ax1.set_title('Raw waveform', fontsize=18)
+    # Plot the reprogrammed input time series for a specific sample
     ax1.set_ylabel('Amplitude', fontsize=18)
     ax1.set_xlabel('Sample index', fontsize=18)
-    ax1.plot(audios[idAudio], 'b-',label = "Reprogrammed time series")
+    ax1.plot(reprogrammed_input[idAudio], 'b-', label="Reprogrammed time series")
+    
     if use != 'base':
-        x_tmp = tmp_xt[idAudio].reshape((tmp_xt[idAudio].shape[0], 1))  
+        # Use SegZeroPadding1D to visualize the target placement within reprogrammed input
+        x_tmp = x_test[idAudio].reshape((x_test[idAudio].shape[0], 1))  
         x_tmp = tf.expand_dims(x_tmp, axis=0)
-        print(x_tmp.shape)
-        aug_tmp = SegZeroPadding1D(x_tmp, int(args.seg), tmp_xt[idAudio].shape[0])
+        aug_tmp = SegZeroPadding1D(x_tmp, int(args.seg), x_test[idAudio].shape[0], args.segplace, args.segstack)
         ax1.plot(tf.squeeze(tf.squeeze(aug_tmp, axis=0), axis=-1), 'k-', label="Target time series")
-        print(aug_tmp.shape)
-    ax1.legend(fancybox=True, framealpha=1,  borderpad=1, fontsize=16)
+    ax1.legend(fancybox=True, framealpha=1, borderpad=1, fontsize=16)
 
-    # ax2.set_title('Attention weights (log)', fontsize=18)
+    # Remove the last dimension from x_test to match the expected input shape for attM
+    x_test_2d = x_test.squeeze(-1)
+
+    # Predict with attM to get attention weights and spectrograms for visualization
+    outs, attW, specs = attM.predict(x_test_2d)
+    
+    # Define w_x and h_x based on the shape of x_test instead of specs
+    w_x, h_x = x_test[idAudio].shape[0], specs.shape[2]  # assuming the second dimension of specs is the frequency dimension
+
+    # Log of attention weights
     ax2.set_ylabel('Log of attention weight', fontsize=18)
     ax2.set_xlabel('Mel-spectrogram index', fontsize=18)
     ax2.plot(np.log(attW[idAudio]), 'r-')
 
-    # ax3.imshow(librosa.power_to_db(specs[idAudio,:,:,0], ref=np.max))
-    img3 = ax3.pcolormesh(specs[idAudio,:,:,0])
-#    plt.colorbar(img3)
-    # ax3.set_title('Spectrogram visualization', fontsize=18)
+    # Spectrogram visualization
+    img3 = ax3.pcolormesh(specs[idAudio, :, :, 0])
     ax3.set_ylabel('Frequency', fontsize=18)
     ax3.set_xlabel('Time', fontsize=18)
 
+    # Class Activation Mapping visualization
+    i_heatmap1, _ = layer_output(x_test, base_model, clayer, idAudio)
+    i_cam1 = to_rgb(i_heatmap1, w_x, h_x)  # Convert heatmap to RGB based on x_test dimensions
     img4 = ax4.imshow(i_cam1, aspect="auto")
-#    plt.colorbar(img4)
-    # ax4.set_title('Class Activation Mapping Conv2d', fontsize=18)
     ax4.set_xticks([])
     ax4.set_yticks([])
-    
-#    img5 = ax5.imshow(i_cam2, aspect="auto")
-#    plt.colorbar(img5)
-    #ax5.set_title('Class Activation Mapping Conv2d_1', fontsize=18)
-#    ax5.set_xticks([])
-#    ax5.set_yticks([])
 
     plt.tight_layout()
     if use == 'base':
-        plt.savefig("results/" + data_ix + "_sp_" + cmd_k +".png")
+        plt.savefig("results/" + data_ix + "_sp.png")
     else:
         plt.savefig("results/" + data_ix + "_ts_No"+ str(args.dataset) +".png")
-    
 
-def SegZeroPadding1D(orig_x, seg_num, orig_xlen):
-    
-    src_xlen = 16000
-    all_seg = src_xlen//orig_xlen
-    assert seg_num <= all_seg
-    seg_len = np.int(np.floor(all_seg//seg_num))
-    aug_x = tf.zeros([src_xlen,1])
-    for s in range(seg_num):
-        startidx = (s*seg_len)*orig_xlen
-        endidx = (s*seg_len)*orig_xlen + orig_xlen
-        # print('seg idx: {} --> start: {}, end: {}'.format(s, startidx, endidx))
-        seg_x = ZeroPadding1D(padding=(startidx, src_xlen-endidx))(orig_x)
-        aug_x += seg_x
+
+
+
+def SegZeroPadding1D(orig_x, seg_num, orig_xlen, place='start', stack=False):
+    src_xlen = 16000  # Total length of the reprogrammed input
+    aug_x = tf.zeros([src_xlen, 1])  # Initialize the reprogrammed input with zeros
+
+    if stack:
+        # Calculate the consecutive start positions based on `place`
+        for s in range(seg_num):
+            if place == 'start':
+                startidx = s * orig_xlen
+            elif place == 'center':
+                startidx = s * orig_xlen + (src_xlen - seg_num * orig_xlen) // 2
+            elif place == 'end':
+                startidx = src_xlen - (seg_num - s) * orig_xlen
+            else:
+                raise ValueError("Invalid value for 'place'. Choose from 'start', 'center', or 'end'.")
+
+            endidx = startidx + orig_xlen
+            if endidx > src_xlen:
+                break  # Avoid out-of-bounds placement
+
+            # Place each stacked segment with target data at calculated position
+            seg_x = ZeroPadding1D(padding=(startidx, src_xlen - endidx))(orig_x)
+            aug_x += seg_x
+
+    else:
+        # Non-stacking case: evenly space segments within the total length
+        segment_length = src_xlen // seg_num
+        # Determine offset based on `place`
+        if place == 'start':
+            offset = 0
+        elif place == 'center':
+            offset = (segment_length - orig_xlen) // 2
+        elif place == 'end':
+            offset = segment_length - orig_xlen
+        else:
+            raise ValueError("Invalid value for 'place'. Choose from 'start', 'center', or 'end'.")
+
+        for s in range(seg_num):
+            startidx = s * segment_length + offset
+            endidx = startidx + orig_xlen
+            if endidx > src_xlen:
+                break  # Avoid out-of-bounds placement
+
+            # Place target data at the specified location within each segment
+            seg_x = ZeroPadding1D(padding=(startidx, src_xlen - endidx))(orig_x)
+            aug_x += seg_x
 
     return aug_x
 
-visual_sp(repros, "adv")
+
+
+
+visual_sp(use="adv")
 

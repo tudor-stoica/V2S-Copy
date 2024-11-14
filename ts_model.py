@@ -88,45 +88,70 @@ class ARTLayer(Layer):
     def compute_output_shape(self, input_shape):
         return (input_shape[0],input_shape[1], input_shape[2])
 
-def SegZeroPadding1D(orig_x, seg_num, orig_xlen):
-    src_xlen = 16000
-    all_seg = src_xlen//orig_xlen
-    seg_len = int(np.floor(all_seg//seg_num))
-    aug_x = tf.zeros([src_xlen,1])
-    for s in range(seg_num):
-        startidx = (s*seg_len)*orig_xlen
-        endidx = (s*seg_len)*orig_xlen + orig_xlen
-        print('seg idx: {} --> start: {}, end: {}'.format(s, startidx, endidx))
-    
-        seg_x = ZeroPadding1D(padding=(startidx, src_xlen-endidx))(orig_x)
-        aug_x += seg_x
-    print(aug_x)
+def SegZeroPadding1D(orig_x, seg_num, orig_xlen, place='start', stack=False):
+    src_xlen = 16000  # Fixed length of the reprogrammed input
+    aug_x = tf.zeros([src_xlen, 1])  # Initialize the reprogrammed input with zeros
+
+    if stack:
+        # Consecutive placement based on `place`
+        for s in range(seg_num):
+            if place == 'start':
+                startidx = s * orig_xlen
+            elif place == 'center':
+                startidx = s * orig_xlen + (src_xlen - seg_num * orig_xlen) // 2
+            elif place == 'end':
+                startidx = src_xlen - (seg_num - s) * orig_xlen
+            else:
+                raise ValueError("Invalid value for 'place'. Choose from 'start', 'center', or 'end'.")
+
+            endidx = startidx + orig_xlen
+            if endidx > src_xlen:
+                break
+            seg_x = ZeroPadding1D(padding=(startidx, src_xlen - endidx))(orig_x)
+            aug_x += seg_x
+
+    else:
+        # Evenly spaced placement based on `place`
+        segment_length = src_xlen // seg_num
+        if place == 'start':
+            offset = 0
+        elif place == 'center':
+            offset = (segment_length - orig_xlen) // 2
+        elif place == 'end':
+            offset = segment_length - orig_xlen
+        else:
+            raise ValueError("Invalid value for 'place'. Choose from 'start', 'center', or 'end'.")
+
+        for s in range(seg_num):
+            startidx = s * segment_length + offset
+            endidx = startidx + orig_xlen
+            if endidx > src_xlen:
+                break
+            seg_x = ZeroPadding1D(padding=(startidx, src_xlen - endidx))(orig_x)
+            aug_x += seg_x
+
     return aug_x
 
 # White Adversairal Reprogramming Time Series (WART) Model 
-def WARTmodel(input_shape, pr_model, source_classes, mapping_num, target_classes, mod = 0, seg_num =3, drop_rate=0.4):
+def WARTmodel(input_shape, pr_model, source_classes, mapping_num, target_classes, mod=0, seg_num=3, drop_rate=0.4, place='start', stack=False):
     x = Input(shape=input_shape)
-    x_aug = SegZeroPadding1D(x, seg_num, input_shape[0])
-    # x1 = ZeroPadding1D(padding=(0, 16000-input_shape[0]))(x)
-    # x2 = ZeroPadding1D(padding=(16000-input_shape[0], 0))(x)
-    # x3 = ZeroPadding1D(padding=(np.int(np.floor((16000-input_shape[0])/2)), np.int(np.floor((16000-input_shape[0])/2))))(x)
-    # x_aug = x1 + x2 + x3
-    out = ARTLayer(input_shape[0], mod = mod)(x_aug) # e.g., input_shape[0] = 500 for FordA
+    x_aug = SegZeroPadding1D(x, seg_num, input_shape[0], place=place, stack=stack)
+    out = ARTLayer(input_shape[0], mod=mod)(x_aug)
     out = Reshape([16000,])(out)
-    probs = pr_model(out)   
-    
+    probs = pr_model(out)
+
     if mod != 0:
         probs = multi_mapping(probs, source_classes, mapping_num, target_classes)
-    
-    model = Model(inputs=x, outputs= probs)
 
-    # Freezing pre-trained model
+    model = Model(inputs=x, outputs=probs)
+
+    # Freezing pre-trained model (per mod value)
     if mod == 0:
         model.layers[-1].trainable = False
     elif mod == 1:
         model.layers[-7].trainable = False
     elif mod == 2:
-        model.layers[-1].trainable = True # new setup after ICML 21, which allows reprogramming with fine-tuning.
+        model.layers[-1].trainable = True
 
     return model
 

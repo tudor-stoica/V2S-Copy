@@ -20,7 +20,7 @@ for device in physical_devices:
 K.clear_session()
 # K.set_learning_phase(0)
 
-# parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser()
 # parser.add_argument("--mod", type = int, default = 2, help = "Single input seq (0), multiple input aug (1), repro w/ TF (2)")
 # parser.add_argument("--net", type = int, default = 0, help = "Pretrained (0), AttRNN (#32), (1) VGGish (#512)")
 # parser.add_argument("--dataset", type = int, default = 0, help = "Ford-A (0), Beef (1), ECG200 (2), Wine (3), Earthquakes (4), Worms (5), Distal (6), Outline Correct (7), ECG-5k (8), ArrowH (9), CBF (10), ChlorineCon (11)")
@@ -28,17 +28,19 @@ K.clear_session()
 # parser.add_argument("--eps", type = int, default = 100, help = "Epochs") 
 # parser.add_argument("--per", type = int, default = 0, help = "save weight per N epochs")
 # parser.add_argument("--dr", type=int, default = 4, help = "drop out rate")
-# parser.add_argument("--seg", type=int, default = 1, help = "seg padding number")
-# args = parser.parse_args()
+parser.add_argument("--seg", type=int, default = 1, help = "seg padding number")
+args = parser.parse_args()
 
 mod = 2
-net = 0
-dataset = 0
+net = 1
+dataset = 2
 mapping = 18
-eps = 20
-per = 2
+eps = 40
+per = 0
 dr = 4
-seg = 18
+seg = args.seg
+stack = False
+place = "center"
 
 
 x_train, y_train, x_test, y_test = readucr(dataset)
@@ -95,7 +97,7 @@ mapping_num = mapping
 seg_num = seg
 drop_rate = dr*0.1
 
-pr_model.summary()
+#pr_model.summary()
 
 
 
@@ -105,7 +107,7 @@ except AssertionError:
     print("Error: The mapping num should be smaller than source_classes / num_classes: {}".format(source_classes//num_classes)) 
     exit(1)
 
-model = WARTmodel(target_shape, pr_model, source_classes, mapping_num, num_classes, mod, seg_num, drop_rate)
+model = WARTmodel(target_shape, pr_model, source_classes, mapping_num, num_classes, mod, seg_num, drop_rate, place, stack)
 # else:
 # model = pr_model # define for transfer learning
 
@@ -156,8 +158,8 @@ print('--- Test loss:', score[0])
 print('- Test accuracy:', score[1])
 
 
-print("=== Best Val. Acc: ", max(exp_history.history['val_accuracy']), " At Epoch of ", np.argmax(exp_history.history['val_accuracy']))
+print("=== Best Val. Acc: ", max(exp_history.history['val_accuracy']), " At Epoch of ", np.argmax(exp_history.history['val_accuracy']) + 1)
 
-plot_acc_loss(exp_history, str(eps), str(dataset), str(mapping))
+plot_acc_loss(exp_history, str(eps), str(dataset), str(mapping), str(seg))
 
 

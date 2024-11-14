@@ -85,7 +85,7 @@ def np_reader(filename, port):
 
 import matplotlib.pyplot as plt
 
-def plot_acc_loss(x_history, eps, data_ix, map_num):
+def plot_acc_loss(x_history, eps, data_ix, map_num, seg):
 
     plt.figure()
     plt.style.use("seaborn")
@@ -105,4 +105,4 @@ def plot_acc_loss(x_history, eps, data_ix, map_num):
     ax2.set_xlabel("Epoch")
     ax2.legend()
     plt.tight_layout()
-    plt.savefig("results/dataset_No"+ data_ix + "_eps"+ eps + "_map" + map_num + "_.png") #PadCenter/
+    plt.savefig("results/dataset_No"+ data_ix + "_eps"+ eps + "_map" + map_num + "_seg" + seg + "_.png") #PadCenter/
