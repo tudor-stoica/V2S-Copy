@@ -29,18 +29,22 @@ parser = argparse.ArgumentParser()
 # parser.add_argument("--per", type = int, default = 0, help = "save weight per N epochs")
 # parser.add_argument("--dr", type=int, default = 4, help = "drop out rate")
 parser.add_argument("--seg", type=int, default = 1, help = "seg padding number")
+parser.add_argument("--place", type=str, default="start", choices=['start', 'center', 'end'], help="Placement within segments: 'start', 'center', or 'end'")
+parser.add_argument("--stack", action='store_true', help="Whether to stack target segments consecutively or distribute evenly")
 args = parser.parse_args()
 
 mod = 2
-net = 1
-dataset = 2
-mapping = 18
+net = 0
+dataset = 5
+mapping = 6
 eps = 40
 per = 0
 dr = 4
 seg = args.seg
-stack = False
-place = "center"
+#stack = False
+stack = args.stack
+#place = "center"
+place = args.place
 
 
 x_train, y_train, x_test, y_test = readucr(dataset)
@@ -127,7 +131,7 @@ if per!= 0:
     )
     exp_callback = [tf.keras.callbacks.EarlyStopping(patience=500), checkpoints]
 else:
-    exp_callback = [tf.keras.callbacks.EarlyStopping(patience=500)]
+    exp_callback = [tf.keras.callbacks.EarlyStopping(patience=10)]
 
 
 model.compile(loss='categorical_crossentropy', optimizer = adam, metrics=['accuracy'])
@@ -160,6 +164,16 @@ print('- Test accuracy:', score[1])
 
 print("=== Best Val. Acc: ", max(exp_history.history['val_accuracy']), " At Epoch of ", np.argmax(exp_history.history['val_accuracy']) + 1)
 
-plot_acc_loss(exp_history, str(eps), str(dataset), str(mapping), str(seg))
+plot_acc_loss(exp_history, str(eps), str(dataset), str(mapping), str(seg), str(stack), str(place))
 
 
+# Extract best validation accuracy and the epoch it occurred
+best_val_acc = max(exp_history.history['val_accuracy'])
+best_epoch = np.argmax(exp_history.history['val_accuracy']) + 1
+
+# Format the line to write
+output_line = f"DS{dataset} Eps{eps} Stack: {stack} Place: {place} seg{seg} BestEp{np.argmax(exp_history.history['val_accuracy']) + 1} acc{best_val_acc:.4f}\n"
+
+# Write the output to 'out.txt'
+with open("out.txt", "a") as file:
+    file.write(output_line)
